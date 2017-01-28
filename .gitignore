@@ -22,3 +22,10 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+# idea
+/*.iml
+/.idea
+
+# demo
+/demo/resource/*
