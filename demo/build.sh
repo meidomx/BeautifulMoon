@@ -3,5 +3,5 @@ go build -x
 echo ""
 echo ""
 echo "========> starting..."
-./demo
+GODEBUG=cgocheck=0 ./demo
 echo "========> done."
