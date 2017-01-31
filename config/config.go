@@ -1,7 +1,8 @@
 package config
 
 type GlobalConfig struct {
-	DisplayConfig DisplayConfig
+	DisplayConfig  DisplayConfig
+	InternalConfig *InternalConfig
 }
 
 type DisplayConfig struct {

@@ -3,22 +3,47 @@ package main
 import (
 	"fmt"
 	goimage "image"
+	"math"
+	"reflect"
 	"runtime"
+	"unsafe"
 
 	"github.com/go-gl/gl/v3.2-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
 
 	"github.com/meidomx/BeautifulMoon"
+	"github.com/meidomx/BeautifulMoon/config"
 	"github.com/meidomx/BeautifulMoon/engine"
+	"github.com/meidomx/BeautifulMoon/engine/api"
 	"github.com/meidomx/BeautifulMoon/resource/image"
-	"reflect"
-	"unsafe"
 )
 
 func init() {
 	// This is needed to arrange that main() runs on main thread.
 	// See documentation for functions that are only allowed to be called from the main thread.
 	runtime.LockOSThread()
+}
+
+type DemoPhaseHandler struct {
+}
+
+func (this DemoPhaseHandler) DoInitPhase(ph api.PhaseController) {
+	//fmt.Println("init phase")
+
+	b := make([]api.PhaseTask, 4)
+	for i := 0; i < len(b); i++ {
+		b[i] = api.PhaseTask{
+			Attachment: make([]byte, 4*1024),
+		}
+	}
+	// finally submit task for parallel processing
+	ph.BatchSubmitTask(b)
+}
+func (this DemoPhaseHandler) DoConcurrentPhase(t api.PhaseTask, processorNo int) {
+	//fmt.Println("conccurent phase:", processorNo)
+}
+func (this DemoPhaseHandler) DoFinalPhase(ph api.PhaseController) {
+	//fmt.Println("final phase")
 }
 
 func main() {
@@ -29,8 +54,10 @@ func main() {
 	c.DisplayConfig.OpenGLConfig.MAJOR_VERSION = 3
 	c.DisplayConfig.OpenGLConfig.MINOR_VERSION = 3
 	c.DisplayConfig.FullScreen = false
+	c.InternalConfig = config.NewInternalConfig()
 
-	en, err := engine.NewAndStartMainLoop(nil)
+	ph := DemoPhaseHandler{}
+	en, err := engine.NewAndStartMainLoop(nil, c.InternalConfig, ph)
 	if err != nil {
 		panic(err)
 	}
@@ -104,7 +131,6 @@ func main() {
 	gl.CompileShader(vertextShaderId)
 	var compileResult int32
 	gl.GetShaderiv(vertextShaderId, gl.COMPILE_STATUS, &compileResult)
-	fmt.Println("vertex shader compile:", compileResult, ",", vertextShaderId)
 	if compileResult == 0 {
 		data := make([]uint8, 512)
 		header := (*reflect.SliceHeader)(unsafe.Pointer(&data))
@@ -121,7 +147,6 @@ func main() {
 	gl.ShaderSource(fragmentShaderid, 1, fragShaderStr, nil)
 	gl.CompileShader(fragmentShaderid)
 	gl.GetShaderiv(fragmentShaderid, gl.COMPILE_STATUS, &compileResult)
-	fmt.Println("fragment shader compile:", compileResult, ",", fragmentShaderid)
 	if compileResult == 0 {
 		data := make([]uint8, 512)
 		header := (*reflect.SliceHeader)(unsafe.Pointer(&data))
@@ -137,7 +162,6 @@ func main() {
 	gl.AttachShader(shaderProgram, fragmentShaderid)
 	gl.LinkProgram(shaderProgram)
 	gl.GetProgramiv(shaderProgram, gl.LINK_STATUS, &compileResult)
-	fmt.Println("program link:", compileResult, ",", shaderProgram)
 	if compileResult == 0 {
 		data := make([]uint8, 512)
 		header := (*reflect.SliceHeader)(unsafe.Pointer(&data))
@@ -199,24 +223,39 @@ func main() {
 
 	//gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
 
+	vertexColorLocation := gl.GetUniformLocation(shaderProgram, gl.Str("ourColor"+string([]byte{0})))
+
+	last := glfw.GetTime()
+	last = 0
+
 	for !window.ShouldClose() {
 		// chapter 1
 		gl.ClearColor(0.2, 0.3, 0.3, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 
+		t := glfw.GetTime()
+
+		greenValue := float32(math.Sin(float64(t))/2 + 0.5)
+
 		var _ = texture
 
 		gl.UseProgram(shaderProgram)
+		gl.Uniform4f(vertexColorLocation, 0.0, greenValue, 0.0, 0.0)
 		gl.BindVertexArray(vaoId)
 		gl.DrawArrays(gl.TRIANGLES, 0, 3)
 		gl.BindVertexArray(0)
 
 		gl.UseProgram(shaderProgram)
+		gl.Uniform4f(vertexColorLocation, 0.0, greenValue, 0.0, 0.0)
 		gl.BindVertexArray(eboVAOId)
 		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, eboId)
 		gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, unsafe.Pointer(uintptr(0)))
 		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0)
 		gl.BindVertexArray(0)
+
+		fps := 1 / (t - last)
+		window.SetTitle(fmt.Sprintf("%.1f / %.1f", fps, en.GetFPS()))
+		last = t
 
 		// Do OpenGL stuff.
 		window.SwapBuffers()
@@ -254,17 +293,18 @@ layout (location = 0) in vec3 position;
 
 void main()
 {
-    gl_Position = vec4(position.x, position.y, position.z, 1.0);
+    gl_Position = vec4(position.xyz, 1.0);
 }
 	` + string([]byte{0})
 	_FRAGMENT_SHADER = `
 #version 330 core
 
 out vec4 color;
+uniform vec4 ourColor;
 
 void main()
 {
-    color = vec4(1.0f, 0.5f, 0.2f, 1.0f);
+    color = ourColor;
 }
 	` + string([]byte{0})
 )
