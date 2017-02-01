@@ -52,10 +52,16 @@ func (this *engine) mainLoop() {
 	last := time.Now().UnixNano() / 1000 / 1000
 	timerChan := this.mainLoopTimerChan
 	phaseProcessor := this.phaseProcess
-	for !this.stopped {
-		<-timerChan
 
-		phaseProcessor.ProcessInitPhase()
+	event := new(api.LoopTriggeredEvent)
+	event.LastTriggeredTime = <-timerChan
+
+	for !this.stopped {
+		invokeTime := <-timerChan
+
+		event.TriggeredTime = invokeTime
+
+		phaseProcessor.ProcessInitPhase(event)
 		phaseProcessor.ProcessConcurrentPhase()
 		phaseProcessor.ProcessFinalPhase()
 		phaseProcessor.ProcessBackgroundPhase()
@@ -63,8 +69,10 @@ func (this *engine) mainLoop() {
 		curTime := time.Now().UnixNano() / 1000 / 1000
 		this.fps = 1000 / float32(curTime-last)
 		last = curTime
+		event.LastTriggeredTime = event.TriggeredTime
 	}
 	phaseProcessor.Shutdown()
+	this.mainLoopTimer.Stop()
 }
 
 func (this *engine) DoNothing() {

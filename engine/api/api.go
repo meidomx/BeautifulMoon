@@ -1,5 +1,7 @@
 package api
 
+import "time"
+
 type PhaseTask struct {
 	dispatchId int
 	Attachment interface{}
@@ -10,7 +12,7 @@ func (this PhaseTask) HashCodeInt() int {
 }
 
 type PhaseProcessor interface {
-	ProcessInitPhase()
+	ProcessInitPhase(*LoopTriggeredEvent)
 	ProcessConcurrentPhase()
 	ProcessFinalPhase()
 	ProcessBackgroundPhase()
@@ -23,11 +25,16 @@ type PhaseController interface {
 }
 
 type PhaseHandler interface {
-	DoInitPhase(PhaseController)
+	DoInitPhase(PhaseController, *LoopTriggeredEvent)
 	DoConcurrentPhase(t PhaseTask, processorNo int)
 	DoFinalPhase(PhaseController)
 }
 
-type PhaseInitProcessFunction func(PhaseController)
+type PhaseInitProcessFunction func(PhaseController, *LoopTriggeredEvent)
 type PhaseConcurrentProcessFunction func(t PhaseTask, processorNo int)
 type PhaseFinalProcessFunction func(PhaseController)
+
+type LoopTriggeredEvent struct {
+	TriggeredTime     time.Time
+	LastTriggeredTime time.Time
+}

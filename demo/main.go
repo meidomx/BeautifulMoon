@@ -27,13 +27,13 @@ func init() {
 type DemoPhaseHandler struct {
 }
 
-func (this DemoPhaseHandler) DoInitPhase(ph api.PhaseController) {
+func (this DemoPhaseHandler) DoInitPhase(ph api.PhaseController, event *api.LoopTriggeredEvent) {
 	//fmt.Println("init phase")
 
 	b := make([]api.PhaseTask, 4)
 	for i := 0; i < len(b); i++ {
 		b[i] = api.PhaseTask{
-			Attachment: make([]byte, 4*1024),
+			Attachment: make([]byte, 512),
 		}
 	}
 	// finally submit task for parallel processing
@@ -88,6 +88,7 @@ func main() {
 	glfw.WindowHint(glfw.ContextVersionMinor, c.DisplayConfig.OpenGLConfig.MINOR_VERSION)
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
+	//glfw.WindowHint(glfw.RefreshRate, 120)
 
 	var monitor *glfw.Monitor = nil
 	if c.DisplayConfig.FullScreen {
@@ -114,7 +115,7 @@ func main() {
 	version := gl.GoStr(gl.GetString(gl.VERSION))
 	fmt.Println("OpenGL version", version)
 
-	glfw.SwapInterval(1)
+	//glfw.SwapInterval(1)
 
 	window.SetInputMode(glfw.CursorMode, glfw.CursorNormal)
 	cursor := glfw.CreateStandardCursor(int(glfw.HandCursor))

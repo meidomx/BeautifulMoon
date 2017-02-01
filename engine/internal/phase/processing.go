@@ -55,6 +55,8 @@ type phaseProcessor struct {
 	initPhaseFunction       api.PhaseInitProcessFunction
 	concurrentPhaseFunction api.PhaseConcurrentProcessFunction
 	finalPhaseFunction      api.PhaseFinalProcessFunction
+
+	currentPhase _PhaseType
 }
 
 func (this *phaseProcessor) SubmitTask(task api.PhaseTask) {
@@ -69,8 +71,9 @@ func (this *phaseProcessor) BatchSubmitTask(tasks []api.PhaseTask) {
 
 // init phase
 // may be blocked when: task channel is full
-func (this *phaseProcessor) ProcessInitPhase() {
-	this.initPhaseFunction(this)
+func (this *phaseProcessor) ProcessInitPhase(p *api.LoopTriggeredEvent) {
+	this.currentPhase = _PHASE_INIT
+	this.initPhaseFunction(this, p)
 }
 
 // concurrent phase
@@ -82,6 +85,7 @@ func (this *phaseProcessor) ProcessConcurrentPhase() {
 // final phase
 // may be blocked when: task channel is full
 func (this *phaseProcessor) ProcessFinalPhase() {
+	this.currentPhase = _PHASE_FINAL
 	this.finalPhaseFunction(this)
 }
 
