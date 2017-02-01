@@ -4,18 +4,19 @@ import (
 	"fmt"
 	goimage "image"
 	"math"
-	"reflect"
 	"runtime"
 	"unsafe"
 
-	"github.com/go-gl/gl/v3.2-core/gl"
+	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
 
 	"github.com/meidomx/BeautifulMoon"
 	"github.com/meidomx/BeautifulMoon/config"
+	"github.com/meidomx/BeautifulMoon/display/glutils"
 	"github.com/meidomx/BeautifulMoon/engine"
 	"github.com/meidomx/BeautifulMoon/engine/api"
 	"github.com/meidomx/BeautifulMoon/resource/image"
+	"github.com/meidomx/BeautifulMoon/globalutils"
 )
 
 func init() {
@@ -125,56 +126,10 @@ func main() {
 	gl.Viewport(0, 0, int32(w), int32(h))
 	texture := getTexture(rgba)
 
-	var vertextShaderId = gl.CreateShader(gl.VERTEX_SHADER)
-	var vertexShaderStr, vertexShaderStrFreeFunc = gl.Strs(_VERTEX_SHADER)
-	defer vertexShaderStrFreeFunc()
-	gl.ShaderSource(vertextShaderId, 1, vertexShaderStr, nil)
-	gl.CompileShader(vertextShaderId)
-	var compileResult int32
-	gl.GetShaderiv(vertextShaderId, gl.COMPILE_STATUS, &compileResult)
-	if compileResult == 0 {
-		data := make([]uint8, 512)
-		header := (*reflect.SliceHeader)(unsafe.Pointer(&data))
-		gl.GetShaderInfoLog(vertextShaderId, 512, nil, (*uint8)(unsafe.Pointer(header.Data)))
-		strdata := make([]byte, 512)
-		for i := 0; i < 512; i++ {
-			strdata[i] = byte(data[i])
-		}
-		panic(string(strdata))
-	}
-	var fragmentShaderid = gl.CreateShader(gl.FRAGMENT_SHADER)
-	var fragShaderStr, fragShaderStrFreeFunc = gl.Strs(_FRAGMENT_SHADER)
-	defer fragShaderStrFreeFunc()
-	gl.ShaderSource(fragmentShaderid, 1, fragShaderStr, nil)
-	gl.CompileShader(fragmentShaderid)
-	gl.GetShaderiv(fragmentShaderid, gl.COMPILE_STATUS, &compileResult)
-	if compileResult == 0 {
-		data := make([]uint8, 512)
-		header := (*reflect.SliceHeader)(unsafe.Pointer(&data))
-		gl.GetShaderInfoLog(fragmentShaderid, 512, nil, (*uint8)(unsafe.Pointer(header.Data)))
-		strdata := make([]byte, 512)
-		for i := 0; i < 512; i++ {
-			strdata[i] = byte(data[i])
-		}
-		panic(string(strdata))
-	}
-	var shaderProgram = gl.CreateProgram()
-	gl.AttachShader(shaderProgram, vertextShaderId)
-	gl.AttachShader(shaderProgram, fragmentShaderid)
-	gl.LinkProgram(shaderProgram)
-	gl.GetProgramiv(shaderProgram, gl.LINK_STATUS, &compileResult)
-	if compileResult == 0 {
-		data := make([]uint8, 512)
-		header := (*reflect.SliceHeader)(unsafe.Pointer(&data))
-		gl.GetProgramInfoLog(shaderProgram, 512, nil, (*uint8)(unsafe.Pointer(header.Data)))
-		strdata := make([]byte, 512)
-		for i := 0; i < 512; i++ {
-			strdata[i] = byte(data[i])
-		}
-		panic(string(strdata))
-	}
-	gl.DeleteShader(vertextShaderId)
-	gl.DeleteShader(fragmentShaderid)
+	shaderProgramObject := glutils.NewShaderProgram()
+	globalutils.PanicError(shaderProgramObject.SetVertexShader(_VERTEX_SHADER))
+	globalutils.PanicError(shaderProgramObject.SetFragmentShader(_FRAGMENT_SHADER))
+	globalutils.PanicError(shaderProgramObject.Link())
 
 	var vaoId uint32
 	gl.GenVertexArrays(1, &vaoId)
@@ -224,7 +179,7 @@ func main() {
 
 	//gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
 
-	vertexColorLocation := gl.GetUniformLocation(shaderProgram, gl.Str("ourColor"+string([]byte{0})))
+	vertexColorLocation := gl.GetUniformLocation(shaderProgramObject.GetShaderProgramId(), gl.Str("ourColor"+string([]byte{0})))
 
 	last := glfw.GetTime()
 	last = 0
@@ -240,13 +195,13 @@ func main() {
 
 		var _ = texture
 
-		gl.UseProgram(shaderProgram)
+		shaderProgramObject.UseProgram()
 		gl.Uniform4f(vertexColorLocation, 0.0, greenValue, 0.0, 0.0)
 		gl.BindVertexArray(vaoId)
 		gl.DrawArrays(gl.TRIANGLES, 0, 3)
 		gl.BindVertexArray(0)
 
-		gl.UseProgram(shaderProgram)
+		shaderProgramObject.UseProgram()
 		gl.Uniform4f(vertexColorLocation, 0.0, greenValue, 0.0, 0.0)
 		gl.BindVertexArray(eboVAOId)
 		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, eboId)
