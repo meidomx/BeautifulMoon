@@ -12,11 +12,12 @@ import (
 
 	"github.com/meidomx/BeautifulMoon"
 	"github.com/meidomx/BeautifulMoon/config"
+	"github.com/meidomx/BeautifulMoon/display/glfwutils"
 	"github.com/meidomx/BeautifulMoon/display/glutils"
 	"github.com/meidomx/BeautifulMoon/engine"
 	"github.com/meidomx/BeautifulMoon/engine/api"
-	"github.com/meidomx/BeautifulMoon/resource/image"
 	"github.com/meidomx/BeautifulMoon/globalutils"
+	"github.com/meidomx/BeautifulMoon/resource/image"
 )
 
 func init() {
@@ -66,39 +67,16 @@ func main() {
 
 	//==========================================================
 	img, err := image.NewImageFromFile("resource\\1.jpg")
-	if err != nil {
-		panic(err)
-	}
+	globalutils.PanicError(err)
 	rgba, err := image.ToRGBA(img)
-	if err != nil {
-		panic(err)
-	}
+	globalutils.PanicError(err)
 
 	err = glfw.Init()
-	if err != nil {
-		panic(err)
-	}
+	globalutils.PanicError(err)
 	defer glfw.Terminate()
 
-	if c.DisplayConfig.WindowResizable {
-		glfw.WindowHint(glfw.Resizable, glfw.True)
-	} else {
-		glfw.WindowHint(glfw.Resizable, glfw.False)
-	}
-	glfw.WindowHint(glfw.ContextVersionMajor, c.DisplayConfig.OpenGLConfig.MAJOR_VERSION)
-	glfw.WindowHint(glfw.ContextVersionMinor, c.DisplayConfig.OpenGLConfig.MINOR_VERSION)
-	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
-	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
-	//glfw.WindowHint(glfw.RefreshRate, 120)
-
-	var monitor *glfw.Monitor = nil
-	if c.DisplayConfig.FullScreen {
-		monitor = glfw.GetPrimaryMonitor()
-	}
-	window, err := glfw.CreateWindow(c.DisplayConfig.DisplayResolution.Width, c.DisplayConfig.DisplayResolution.Height, "Testing", monitor, nil)
-	if err != nil {
-		panic(err)
-	}
+	window, err := glfwutils.InitWindow(c)
+	globalutils.PanicError(err)
 
 	window.MakeContextCurrent()
 
@@ -110,9 +88,7 @@ func main() {
 	})
 
 	// Initialize Glow
-	if err := gl.Init(); err != nil {
-		panic(err)
-	}
+	globalutils.PanicError(gl.Init())
 	version := gl.GoStr(gl.GetString(gl.VERSION))
 	fmt.Println("OpenGL version", version)
 

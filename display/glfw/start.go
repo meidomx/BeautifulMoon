@@ -1,5 +1,0 @@
-package glfw
-
-func InitWindow() {
-
-}
