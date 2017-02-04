@@ -4,7 +4,10 @@ import (
 	"fmt"
 	goimage "image"
 	"math"
+	"os"
 	"runtime"
+	"runtime/pprof"
+	"runtime/trace"
 	"unsafe"
 
 	"github.com/go-gl/gl/v3.3-core/gl"
@@ -12,6 +15,7 @@ import (
 
 	"github.com/meidomx/BeautifulMoon"
 	"github.com/meidomx/BeautifulMoon/config"
+	"github.com/meidomx/BeautifulMoon/display"
 	"github.com/meidomx/BeautifulMoon/display/glfwutils"
 	"github.com/meidomx/BeautifulMoon/display/glutils"
 	"github.com/meidomx/BeautifulMoon/engine"
@@ -66,7 +70,9 @@ func main() {
 	en.DoNothing()
 
 	//==========================================================
-	img, err := image.NewImageFromFile("resource\\1.jpg")
+	resoConv := display.NewResolutionConverter(c.DisplayConfig.DisplayResolution.Width, c.DisplayConfig.DisplayResolution.Height)
+
+	img, err := image.NewImageFromFile("resource\\1.png")
 	globalutils.PanicError(err)
 	rgba, err := image.ToRGBA(img)
 	globalutils.PanicError(err)
@@ -106,52 +112,59 @@ func main() {
 	globalutils.PanicError(shaderProgramObject.SetVertexShader(_VERTEX_SHADER))
 	globalutils.PanicError(shaderProgramObject.SetFragmentShader(_FRAGMENT_SHADER))
 	globalutils.PanicError(shaderProgramObject.Link())
+	globalutils.PanicFalse(shaderProgramObject.IsAvailable())
 
-	var vaoId uint32
-	gl.GenVertexArrays(1, &vaoId)
-	var bufferId uint32
-	gl.GenBuffers(1, &bufferId)
 	// chapter 2
 	trianglePoint := []float32{
 		-0.5, -0.5, 0.0,
 		0.5, -0.5, 0.0,
 		0.0, 0.5, 0.0,
 	}
-	gl.BindVertexArray(vaoId)
-	gl.BindBuffer(gl.ARRAY_BUFFER, bufferId)
-	gl.BufferData(gl.ARRAY_BUFFER, 4*len(trianglePoint), gl.Ptr(trianglePoint), gl.STATIC_DRAW)
-	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 3*4, unsafe.Pointer(uintptr(0)))
-	gl.EnableVertexAttribArray(0)
-	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
-	gl.BindVertexArray(0)
+	vaoObject := glutils.NewVertexArrayObject()
+	globalutils.PanicFalse(vaoObject.IsAvailable())
+	var bufferId uint32
+	gl.GenBuffers(1, &bufferId)
+	glutils.NewBindableFunc(vaoObject, func() {
+		gl.BindBuffer(gl.ARRAY_BUFFER, bufferId)
+		gl.BufferData(gl.ARRAY_BUFFER, 4*len(trianglePoint), gl.Ptr(trianglePoint), gl.STATIC_DRAW)
+		gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 3*4, unsafe.Pointer(uintptr(0)))
+		gl.EnableVertexAttribArray(0)
+		gl.BindBuffer(gl.ARRAY_BUFFER, 0)
+	})()
+	trianglePointDrawFunc := glutils.NewBindableFunc(vaoObject, func() {
+		gl.DrawArrays(gl.TRIANGLES, 0, 3)
+	})
 
+	point0x, point0y := resoConv.ConvertToOpenGLCoordinator2d32(100, 550)
+	point1x, point1y := resoConv.ConvertToOpenGLCoordinator2d32(100, 470)
+	point2x, point2y := resoConv.ConvertToOpenGLCoordinator2d32(200, 550)
+	point3x, point3y := resoConv.ConvertToOpenGLCoordinator2d32(200, 470)
 	rectanglePoint := []float32{
-		-0.8, -0.8, 0.0,
-		-0.8, -0.6, 0.0,
-		0.8, -0.8, 0.0,
-		0.8, -0.6, 0.0,
+		point0x, point0y, 0.0,
+		point1x, point1y, 0.0,
+		point2x, point2y, 0.0,
+		point3x, point3y, 0.0,
 	}
 	rectangleIndices := []uint32{
 		0, 1, 2,
 		1, 2, 3,
 	}
-
-	var eboVAOId uint32
-	gl.GenVertexArrays(1, &eboVAOId)
+	eboVaoObject := glutils.NewVertexArrayObject()
+	globalutils.PanicFalse(eboVaoObject.IsAvailable())
 	var eboVboId uint32
 	gl.GenBuffers(1, &eboVboId)
 	var eboId uint32
 	gl.GenBuffers(1, &eboId)
-	gl.BindVertexArray(eboVAOId)
-	gl.BindBuffer(gl.ARRAY_BUFFER, eboVboId)
-	gl.BufferData(gl.ARRAY_BUFFER, 4*len(rectanglePoint), gl.Ptr(rectanglePoint), gl.STATIC_DRAW)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, eboId)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, 4*len(rectangleIndices), gl.Ptr(rectangleIndices), gl.STATIC_DRAW)
-	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 3*4, unsafe.Pointer(uintptr(0)))
-	gl.EnableVertexAttribArray(0)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0)
-	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
-	gl.BindVertexArray(0)
+	glutils.NewBindableFunc(eboVaoObject, func() {
+		gl.BindBuffer(gl.ARRAY_BUFFER, eboVboId)
+		gl.BufferData(gl.ARRAY_BUFFER, 4*len(rectanglePoint), gl.Ptr(rectanglePoint), gl.STATIC_DRAW)
+		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, eboId)
+		gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, 4*len(rectangleIndices), gl.Ptr(rectangleIndices), gl.STATIC_DRAW)
+		gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 3*4, unsafe.Pointer(uintptr(0)))
+		gl.EnableVertexAttribArray(0)
+		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0)
+		gl.BindBuffer(gl.ARRAY_BUFFER, 0)
+	})()
 
 	//gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
 
@@ -159,6 +172,17 @@ func main() {
 
 	last := glfw.GetTime()
 	last = 0
+	frameCnt := 0
+
+	file, err := os.OpenFile("./trace.out", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(0644))
+	globalutils.PanicError(err)
+	globalutils.PanicError(trace.Start(file))
+	defer trace.Stop()
+	pprofFile, err := os.OpenFile("./pprof.out", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(0644))
+	globalutils.PanicError(err)
+	defer pprofFile.Close()
+	globalutils.PanicError(pprof.StartCPUProfile(pprofFile))
+	defer pprof.StopCPUProfile()
 
 	for !window.ShouldClose() {
 		// chapter 1
@@ -173,21 +197,24 @@ func main() {
 
 		shaderProgramObject.UseProgram()
 		gl.Uniform4f(vertexColorLocation, 0.0, greenValue, 0.0, 0.0)
-		gl.BindVertexArray(vaoId)
-		gl.DrawArrays(gl.TRIANGLES, 0, 3)
-		gl.BindVertexArray(0)
+		trianglePointDrawFunc()
 
 		shaderProgramObject.UseProgram()
 		gl.Uniform4f(vertexColorLocation, 0.0, greenValue, 0.0, 0.0)
-		gl.BindVertexArray(eboVAOId)
+		eboVaoObject.Bind()
 		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, eboId)
 		gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, unsafe.Pointer(uintptr(0)))
 		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0)
-		gl.BindVertexArray(0)
+		eboVaoObject.ResetBinding()
 
-		fps := 1 / (t - last)
-		window.SetTitle(fmt.Sprintf("%.1f / %.1f", fps, en.GetFPS()))
-		last = t
+		duration := t - last
+		frameCnt++
+		if duration > 0.4 {
+			fps := 1 / duration * float64(frameCnt)
+			window.SetTitle(fmt.Sprintf("%.1f / %.1f", fps, en.GetFPS()))
+			last = t
+			frameCnt = 0
+		}
 
 		// Do OpenGL stuff.
 		window.SwapBuffers()
