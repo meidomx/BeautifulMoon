@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	goimage "image"
+	"image"
 	"math"
 	"os"
 	"runtime"
@@ -21,7 +21,7 @@ import (
 	"github.com/meidomx/BeautifulMoon/engine"
 	"github.com/meidomx/BeautifulMoon/engine/api"
 	"github.com/meidomx/BeautifulMoon/globalutils"
-	"github.com/meidomx/BeautifulMoon/resource/image"
+	"github.com/meidomx/BeautifulMoon/resource/pic"
 )
 
 func init() {
@@ -72,9 +72,9 @@ func main() {
 	//==========================================================
 	resoConv := display.NewResolutionConverter(c.DisplayConfig.DisplayResolution.Width, c.DisplayConfig.DisplayResolution.Height)
 
-	img, err := image.NewImageFromFile("resource\\1.png")
+	img, err := pic.NewImageFromFile("resource/1.png")
 	globalutils.PanicError(err)
-	rgba, err := image.ToRGBA(img)
+	rgba, err := pic.ToRGBA(img)
 	globalutils.PanicError(err)
 
 	err = glfw.Init()
@@ -95,8 +95,7 @@ func main() {
 
 	// Initialize Glow
 	globalutils.PanicError(gl.Init())
-	version := gl.GoStr(gl.GetString(gl.VERSION))
-	fmt.Println("OpenGL version", version)
+	fmt.Println("OpenGL version", glutils.GetOpenGLVersion())
 
 	//glfw.SwapInterval(1)
 
@@ -222,7 +221,7 @@ func main() {
 	}
 }
 
-func getTexture(rgba *goimage.RGBA) uint32 {
+func getTexture(rgba *image.RGBA) uint32 {
 	var texture uint32
 	gl.Enable(gl.TEXTURE_2D)
 	gl.GenTextures(1, &texture)
